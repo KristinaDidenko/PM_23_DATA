@@ -588,3 +588,368 @@ VALUES (1, 2, 5, 100, 150);
 
 SELECT * FROM InventoryLogs WHERE ProductID = 1 ORDER BY LogDate DESC LIMIT 5;--- Перегляд історії змін складу
 
+
+
+---------лаб 5
+-- 1) Створення користувачів БД (LOGIN з паролями)
+DO
+$$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'admin_user') THEN
+      CREATE ROLE admin_user WITH LOGIN PASSWORD 'admin_pass';
+   END IF;
+END
+$$;
+
+DO
+$$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'sales_manager') THEN
+      CREATE ROLE sales_manager WITH LOGIN PASSWORD 'sales_pass';
+   END IF;
+END
+$$;
+
+DO
+$$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'accountant_user') THEN
+      CREATE ROLE accountant_user WITH LOGIN PASSWORD 'accountant_pass';
+   END IF;
+END
+$$;
+
+DO
+$$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'analyst_user') THEN
+      CREATE ROLE analyst_user WITH LOGIN PASSWORD 'analyst_pass';
+   END IF;
+END
+$$;
+
+-- 2) Створення типових ролей без LOGIN
+DO
+$$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'admin_role') THEN
+      CREATE ROLE admin_role NOLOGIN;
+   END IF;
+
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'sales_manager_role') THEN
+      CREATE ROLE sales_manager_role NOLOGIN;
+   END IF;
+
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'accountant_role') THEN
+      CREATE ROLE accountant_role NOLOGIN;
+   END IF;
+
+   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'analyst_role') THEN
+      CREATE ROLE analyst_role NOLOGIN;
+   END IF;
+END
+$$;
+
+-- 3) Надання прав ролям
+
+-- Адміністратор: повний контроль
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin_role;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO admin_role;
+GRANT USAGE, CREATE ON SCHEMA public TO admin_role;
+
+-- Менеджер з продажу: читання, додавання, оновлення в ключових таблицях
+GRANT USAGE ON SCHEMA public TO sales_manager_role;
+GRANT SELECT, INSERT, UPDATE ON products, customers, transactions, transactiondetails TO sales_manager_role;
+
+-- Бухгалтер: робота з платежами
+GRANT USAGE ON SCHEMA public TO accountant_role;
+GRANT SELECT, UPDATE ON payments, paymentscustomers TO accountant_role;
+
+-- Аналітик: лише читання
+GRANT USAGE ON SCHEMA public TO analyst_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO analyst_role;
+
+-- 4) Надання базових прав підключення користувачам
+GRANT CONNECT ON DATABASE mydatabase TO admin_user;
+GRANT CONNECT ON DATABASE mydatabase TO sales_manager;
+GRANT CONNECT ON DATABASE mydatabase TO accountant_user;
+GRANT CONNECT ON DATABASE mydatabase TO analyst_user;
+
+-- 5) Призначення ролей користувачам
+GRANT admin_role TO admin_user;
+GRANT sales_manager_role TO sales_manager;
+GRANT accountant_role TO accountant_user;
+GRANT analyst_role TO analyst_user;
+
+-- 6) Текстовий опис типових задач
+
+-- Адміністратор (admin_user/admin_role):
+/*
+ - Повний контроль над базою даних: створення, змінення, видалення таблиць і об’єктів.
+ - Управління доступами користувачів.
+ - Резервне копіювання і відновлення.
+ - Моніторинг безпеки та продуктивності.
+*/
+
+-- Менеджер з продажу (sales_manager/sales_manager_role):
+/*
+ - Введення і оновлення інформації про клієнтів, товари та замовлення.
+ - Оновлення статусів замовлень.
+ - Отримання звітів про продажі.
+*/
+
+-- Бухгалтер (accountant_user/accountant_role):
+/*
+ - Перегляд і оновлення фінансових транзакцій та платежів.
+ - Формування фінансових звітів для керівництва.
+*/
+
+-- Аналітик (analyst_user/analyst_role):
+/*
+ - Виконання складних SELECT-запитів для аналізу даних.
+ - Побудова звітів і виявлення трендів продажів.
+ - Не має права змінювати дані.
+*/
+
+
+-- Типові задачі для ролей:
+
+-- Адміністратор (admin_user/admin_role):
+/*
+  - Повний контроль над базою даних: створення, зміна, видалення об'єктів.
+  - Управління доступом користувачів і ролей.
+  - Резервне копіювання та відновлення.
+  - Налаштування безпеки та продуктивності.
+*/
+
+-- Менеджер з продажу (sales_manager/sales_manager_role):
+/*
+  - Перегляд даних про товари, клієнтів, транзакції.
+  - Додавання нових записів про клієнтів, товари та замовлення.
+  - Оновлення даних про клієнтів і замовлення.
+  - Формування звітів про продажі.
+*/
+
+-- Бухгалтер (accountant_user/accountant_role):
+/*
+  - Перегляд і оновлення фінансових транзакцій (платежі, звіти).
+  - Перевірка і корекція даних про платежі.
+  - Підготовка фінансової звітності для керівництва.
+*/
+
+-- Аналітик (analyst_user/analyst_role):
+/*
+  - Виконання складних SELECT-запитів для аналітики.
+  - Побудова звітів і виявлення трендів продажів і фінансів.
+  - Робота виключно з читанням даних (немає прав на зміну).
+  - Підготовка даних для прийняття рішень керівництвом.
+*/
+
+
+-----тест
+-- Перевірити наявність користувачів-----Фільтрує лише ті ролі, які мають імена:
+SELECT rolname FROM pg_roles WHERE rolname IN ('admin_user','sales_manager','accountant_user','analyst_user');
+
+-- Перевірити наявність ролей
+SELECT rolname FROM pg_roles WHERE rolname IN ('admin_role','sales_manager_role','accountant_role','analyst_role');
+-- Перевірити, які ролі належать користувачу admin_user
+SELECT r.rolname AS role_name-- Вибираємо назву ролі, яку має користувач (буде показано як 'role_name')
+FROM pg_roles r-- Таблиця з усіма ролями у PostgreSQL (роль, яка була призначена комусь)
+JOIN pg_auth_members m ON r.oid = m.roleid-- З'єднуємо з таблицею членства в ролях, де зберігається хто є учасником якої ролі
+JOIN pg_roles u ON u.oid = m.member-- Ще одне з'єднання з pg_roles, цього разу для користувача/члена ролі
+WHERE u.rolname = 'admin_user';-- Фільтруємо лише ті записи, де ім’я користувача дорівнює 'admin_user'
+
+SELECT r.rolname AS role_name
+FROM pg_roles r
+JOIN pg_auth_members m ON r.oid = m.roleid
+JOIN pg_roles u ON u.oid = m.member
+WHERE u.rolname = 'sales_manager';
+
+
+/*
+SELECT
+    nspname AS schema_name,
+    rolname AS grantee,
+    has_schema_privilege(rolname, nspname, 'USAGE') AS has_usage,
+    has_schema_privilege(rolname, nspname, 'CREATE') AS has_create
+FROM pg_namespace
+CROSS JOIN pg_roles
+WHERE nspname = 'public' -- ім'я схеми
+  AND rolname IN ('sales_manager_role', 'sales_manager'); -- ролі, які перевіряєш
+
+
+SELECT grantee, table_name, privilege_type
+FROM information_schema.role_table_grants
+WHERE grantee IN ('sales_manager_role', 'sales_manager')
+ORDER BY table_name, privilege_type;
+
+
+ */
+-- Аналогічно для інших:
+-- sales_manager, accountant_user, analyst_user
+------
+    /*
+-- 1. Надаємо пряме право INSERT користувачу sales_manager
+GRANT INSERT ON products TO sales_manager;
+-- sales_manager тепер може додавати записи у таблицю products
+
+-- 2. Активуємо роль sales_manager для тесту вставки
+SET ROLE sales_manager;
+
+-- 3. Пробуємо додати запис (успішно, бо є право INSERT)
+INSERT INTO products (productid, name) VALUES (1004, 'Test Insert by sales_manager');
+
+-- 4. Повертаємося до початкової ролі
+RESET ROLE;
+
+
+     */
+-- 5. Перевіряємо які саме права має користувач sales_manager безпосередньо на products
+---
+/*
+SELECT privilege_type
+FROM information_schema.role_table_grants
+WHERE grantee = 'sales_manager'
+  AND table_name = 'products';
+*/
+/*
+-- 6. Перевіряємо права ролі sales_manager_role (якщо така існує)
+SELECT privilege_type
+FROM information_schema.role_table_grants
+WHERE grantee = 'sales_manager_role'
+  AND table_name = 'products';
+
+
+ */
+-- 7. Забираємо право INSERT у користувача sales_manager
+REVOKE INSERT ON products FROM sales_manager;
+/*
+-- 8. Перевіряємо права користувача sales_manager на таблицю products після відкликання INSERT
+SELECT grantee, privilege_type
+FROM information_schema.role_table_grants
+WHERE grantee = 'sales_manager'
+  AND table_name = 'products';
+
+-- 9. Перевірка права UPDATE для користувача sales_manager (має або ні)
+SELECT has_table_privilege('sales_manager', 'public.products', 'UPDATE');
+
+-- 10. Активуємо роль sales_manager і пробуємо оновити запис
+SET ROLE sales_manager;
+UPDATE products SET name = 'Test update' WHERE productid = 1;
+RESET ROLE;
+
+-- 11. Перевірка, які ролі має користувач sales_user (щоб розуміти ієрархію)
+SELECT r.rolname
+FROM pg_roles r
+JOIN pg_auth_members m ON r.oid = m.roleid
+JOIN pg_roles u ON u.oid = m.member
+WHERE u.rolname = 'sales_user';
+
+-- 12. Перевірка права INSERT для користувача sales_manager (має або ні)
+SELECT has_table_privilege('sales_manager', 'public.products', 'INSERT');
+*/
+-- 13. Відкликаємо роль sales_manager_role від користувача sales_manager
+REVOKE sales_manager_role FROM sales_manager;
+/*
+-- 14. Перевіряємо залишкові права користувача sales_manager
+SELECT grantee, privilege_type, table_name
+FROM information_schema.role_table_grants
+WHERE grantee = 'sales_manager';
+
+
+
+-- 15. Пробуємо оновити запис у ролі sales_manager (якщо UPDATE залишився персонально, буде успіх)
+SET ROLE sales_manager;
+UPDATE products SET name = 'Update Test' WHERE productid = 2000;
+RESET ROLE;
+
+
+ */
+
+
+-- Привілеї користувача
+SELECT grantee, privilege_type, table_name
+FROM information_schema.role_table_grants
+WHERE grantee = 'sales_manager' AND table_name = 'products';
+
+-- Привілеї ролей
+SELECT grantee, privilege_type, table_name
+FROM information_schema.role_table_grants
+WHERE grantee IN (
+    SELECT rolname
+    FROM pg_roles
+    WHERE pg_has_role('sales_manager', oid, 'member')
+) AND table_name = 'products';
+-- Наприклад, перевірка, чи є роль 'sales_manager_role' у користувача
+SELECT pg_has_role('sales_manager', 'sales_manager_role', 'member') AS has_role;
+SELECT has_table_privilege('sales_manager', 'public.products', 'INSERT') AS can_insert;
+SELECT has_table_privilege('sales_manager', 'public.products', 'UPDATE') AS can_update;
+  -----упевнемось що всі привілеї надані
+GRANT sales_manager_role TO sales_manager;
+GRANT INSERT, UPDATE ON products TO sales_manager_role;
+GRANT INSERT ON products TO sales_manager;
+
+    -- Перевірка прав перед відкликанням
+SELECT grantee, privilege_type, table_name
+FROM information_schema.role_table_grants
+WHERE grantee IN ('sales_manager', 'sales_manager_role') AND table_name = 'products';
+
+-- Відкликаємо пряме право INSERT у користувача
+REVOKE INSERT ON products FROM sales_manager;
+
+-- Перевіряємо чи користувач все ще має право INSERT (має через роль)
+SELECT has_table_privilege('sales_manager', 'public.products', 'INSERT') AS can_insert;
+
+-- Тут має бути TRUE, бо право є через роль
+
+    -- Відкликаємо роль від користувача
+REVOKE sales_manager_role FROM sales_manager;
+
+-- Перевіряємо, чи користувач має право INSERT, яке було призначене персонально
+SELECT has_table_privilege('sales_manager', 'public.products', 'INSERT') AS can_insert;
+
+-- Перевіряємо права, які були лише через роль (наприклад, UPDATE)
+SELECT has_table_privilege('sales_manager', 'public.products', 'UPDATE') AS can_update;
+SELECT has_table_privilege('sales_manager', 'public.products', 'SELECT') AS can_update;---FALSE
+-- Очікуємо: can_insert = TRUE, can_update = FALSE (бо UPDATE було лише через роль)
+
+--------видалення користувача і його ролі
+----відкликаємо всі привілеї надані напряму
+-- Схема public
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM sales_manager_role;
+
+-- Таблиці
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM sales_manager_role;
+
+-- Секвенції (якщо вони є)
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM sales_manager_role;
+
+-- Функції (якщо є)
+REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM sales_manager_role;
+-----перевірка чи привілегій немає
+SELECT grantee, privilege_type, table_name
+FROM information_schema.role_table_grants
+WHERE grantee = 'sales_manager_role';
+----знову видаляємо привілегії надані напряму
+-- Схема public
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM sales_manager;
+
+-- Таблиці
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM sales_manager;
+
+-- Секвенції
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM sales_manager;
+
+-- Функції
+REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM sales_manager;
+
+-- Підключення до бази
+REVOKE CONNECT ON DATABASE mydatabase FROM sales_manager;
+
+
+DROP ROLE IF EXISTS sales_manager_role;--------видаляємо роль
+DROP ROLE IF EXISTS sales_manager;-------видаляємо користувача
+-- Перевіримо, чи їх більше немає
+SELECT rolname FROM pg_roles WHERE rolname IN ('sales_manager', 'sales_manager_role');
+
